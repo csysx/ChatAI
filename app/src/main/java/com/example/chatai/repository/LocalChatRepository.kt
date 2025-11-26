@@ -6,15 +6,13 @@ import kotlinx.coroutines.delay
 
 /**
  * 本地模拟数据仓库（第一阶段用：不调用真实API，直接返回模拟回复）
- * @param delay 模拟网络延迟（1.5秒，让用户看到“加载中”动画）
  */
 class LocalChatRepository() : ChatRepository {
     override suspend fun sendMessage(text: String): ChatMessage {
-        // 1. 模拟网络延迟（suspend 关键字：表示这是“异步方法”，类似后端的 async）
-        // 为什么用 delay？因为真实场景中，AI回复需要时间，这里模拟这个过程
+        // 1. 模拟网络延迟
         delay(1500)
 
-        // 2. 根据用户输入，返回不同的模拟回复（类似后端的“业务逻辑”）
+        // 2. 根据用户输入，返回不同的模拟回复
         val aiReplyContent = when {
             text.contains("你好") -> "你好呀！我是你的AI对话助手～有什么可以帮你的？"
             text.contains("名字") -> "我叫即梦AI，是专为这个App打造的智能伙伴～"
@@ -23,10 +21,16 @@ class LocalChatRepository() : ChatRepository {
             else -> "感谢你的消息！我已经收到啦～目前我还在学习中，会努力变得更聪明～"
         }
 
-        // 3. 封装成 ChatMessage 对象返回（AI 角色、回复内容）
+        // 3. 封装成 ChatMessage 对象返回
         return ChatMessage(
             role = MessageRole.AI,
             content = aiReplyContent
         )
+    }
+
+    // --- 这里是新增的代码 ---
+    override suspend fun generateImage(prompt: String): String {
+        delay(2000)
+        return "https://via.placeholder.com/512x512.png?text=AI+Image"
     }
 }

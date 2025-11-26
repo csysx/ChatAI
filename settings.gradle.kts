@@ -1,6 +1,6 @@
 pluginManagement {
     repositories {
-//        google()
+        google()
         google {
             content {
                 includeGroupByRegex("com\\.android.*")
@@ -8,19 +8,18 @@ pluginManagement {
                 includeGroupByRegex("androidx.*")
             }
         }
-//        maven { url = uri("https://maven.aliyun.com/repository/public") }
-//        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
         mavenCentral()
-//        google()
         gradlePluginPortal()
     }
 }
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-//    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+//    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+      repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
-//        maven { url = uri("https://maven.aliyun.com/repository/public") }
-//        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
         mavenCentral()
         google()
     }

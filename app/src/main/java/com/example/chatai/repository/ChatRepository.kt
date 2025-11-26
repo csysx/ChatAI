@@ -13,4 +13,7 @@ interface ChatRepository {
      * @return AI 回复的消息（带角色、内容等信息）
      */
     suspend fun sendMessage(text: String): ChatMessage
+
+    // 生成图片的方法，返回图片的 URL (String)
+    suspend fun generateImage(prompt: String): String
 }

@@ -11,15 +11,20 @@ import java.util.UUID
  * @param timestamp 发送时间戳（默认当前时间）
  * @param status 消息状态（成功/加载中/失败，默认成功）
  */
-data class ChatMessage(
-    // UUID.randomUUID()：自动生成唯一字符串（避免重复）
-//    val id: MessageRole = UUID.randomUUID().toString(),
-    val role: MessageRole,
-    val content: String,
-    val timestamp: Long = System.currentTimeMillis(),
-    val status: MessageStatus = MessageStatus.SUCCESS,
 
-//    val imageUrl: String? = null  // 新增字段，用于显示图片
+enum class MessageType {
+    TEXT,  // 文本消息
+    IMAGE, // 图像消息
+    VIDEO  // 视频消息（预留）
+}
+
+data class ChatMessage(
+    val id: String = UUID.randomUUID().toString(),
+    val role: MessageRole,
+    val content: String,       // 文本内容或图像 URL
+    val type: MessageType = MessageType.TEXT,
+    val status: MessageStatus = MessageStatus.SUCCESS,
+    val isLoading: Boolean = false // 是否正在加载
 )
 
 /**

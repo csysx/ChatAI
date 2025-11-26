@@ -5,19 +5,21 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chatai.model.data.ChatMessage
+import com.example.chatai.model.data.GenerationMode
 import com.example.chatai.model.data.MessageRole
 import com.example.chatai.model.data.MessageStatus
+import com.example.chatai.model.data.MessageType
 import com.example.chatai.model.intent.ChatIntent
 import com.example.chatai.model.state.ChatUiState
 import com.example.chatai.repository.ChatRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.chatai.repository.RemoteChatRepository
 import com.example.chatai.repository.RetrofitClient
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * 对话 ViewModel（核心：接收用户意图，更新 UI 状态，调用仓库获取数据）
@@ -27,6 +29,16 @@ class ChatViewModel(
 //    private val repository: ChatRepository = LocalChatRepository()
     private val repository: ChatRepository = RemoteChatRepository(RetrofitClient.apiService)
 ) : ViewModel() {
+
+
+    // 新增：当前生成模式（默认文字）
+    private val _generationMode = MutableStateFlow(GenerationMode.TEXT)
+    val generationMode: StateFlow<GenerationMode> = _generationMode.asStateFlow()
+    // 切换生成模式
+    fun setGenerationMode(mode: GenerationMode) {
+        _generationMode.value = mode
+    }
+
 
     // 1. 私有状态流（MutableStateFlow：可修改的状态，只在 ViewModel 内部用）
     // 初始状态：空消息列表、空输入框、未加载、无错误
@@ -137,56 +149,99 @@ class ChatViewModel(
             }
         }
     }
-    
+
     /**
-     * 2.2 处理“发送消息”（用户点击发送按钮时调用）
+     * 2.2 生成图片（用户点击发送按钮时调用）
      */
-//    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-//    fun generateImage(prompt: String) {
-//        if (prompt.isBlank()) return
-//
-//        val currentMessages = _uiState.value.messages.toMutableList()
-//
-//        // 添加 AI 加载中消息
-//        val loadingMessage = ChatMessage(
-//            role = MessageRole.AI,
-//            content = "",
-//            status = MessageStatus.LOADING
-//        )
-//        currentMessages.add(loadingMessage)
-//
-//        _uiState.update { it.copy(messages = currentMessages, isLoading = true, errorMessage = null) }
-//
-//        viewModelScope.launch(Dispatchers.IO) {
-//            try {
-//                // 调用仓库生成图片
-//                val imageResponse = (repository as RemoteChatRepository).generateImage(prompt)
-//
-//                // 假设 imageResponse.data[0].url 是图片链接
-//                val imageUrl = imageResponse.data.firstOrNull()?.url ?: ""
-//
-//                val updatedMessages = currentMessages.toMutableList()
-//                updatedMessages.removeLast() // 移除加载中
-//                updatedMessages.add(ChatMessage(role = MessageRole.AI, imageUrl = imageUrl))
-//
-//                _uiState.update { it.copy(messages = updatedMessages, isLoading = false) }
-//
-//            } catch (e: Exception) {
-//                val updatedMessages = currentMessages.toMutableList()
-//                updatedMessages.removeLast()
-//                updatedMessages.add(
-//                    ChatMessage(
-//                        role = MessageRole.AI,
-//                        content = "图片生成失败，请重试",
-//                        status = MessageStatus.FAILURE
-//                    )
-//                )
-//                _uiState.update { it.copy(messages = updatedMessages, isLoading = false, errorMessage = e.message) }
-//            }
-//        }
-//    }
-    
-    
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    fun generateImage(prompt: String) {
+        // 1. 添加用户输入的文本消息
+        val userMessage = ChatMessage(
+            role = MessageRole.USER,
+            content = prompt,
+            type = MessageType.TEXT // 消息类型：文本
+        )
+
+        // 从 _uiState 获取当前消息列表并转为可变列表
+        val currentMessages = _uiState.value.messages.toMutableList()
+        currentMessages.add(userMessage)
+
+        // 2. 添加 AI 正在生成的占位消息
+        val loadingMessage = ChatMessage(
+            role = MessageRole.AI,
+            content = "正在生成图像...",
+            type = MessageType.IMAGE, // 消息类型：图像
+            isLoading = true,
+            status = MessageStatus.LOADING // 显式标记状态
+        )
+        currentMessages.add(loadingMessage)
+
+        // 更新 UI 状态：显示新消息，标记加载中
+        _uiState.update { currentState ->
+            currentState.copy(
+                messages = currentMessages,
+                isLoading = true
+            )
+        }
+
+        // 3. 发起 API 请求
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val imageUrl = repository.generateImage(prompt)
+
+
+                // 4. 成功：替换占位消息为实际图像消息
+                val updatedMessages = _uiState.value.messages.toMutableList()
+                if (updatedMessages.isNotEmpty()) {
+                    updatedMessages.removeLast() // 移除“正在生成...”
+                }
+
+                val imageMessage = ChatMessage(
+                    role = MessageRole.AI,
+                    content = imageUrl, // 存储图片 URL
+                    type = MessageType.IMAGE,
+                    isLoading = false,
+                    status = MessageStatus.SUCCESS
+                )
+                updatedMessages.add(imageMessage)
+
+                // 更新 UI
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        messages = updatedMessages,
+                        isLoading = false
+                    )
+                }
+
+            } catch (e: Exception) {
+                // 5. 失败：更新占位消息为错误提示
+                val updatedMessages = _uiState.value.messages.toMutableList()
+                if (updatedMessages.isNotEmpty()) {
+                    updatedMessages.removeLast()
+                }
+
+                val errorMessage = ChatMessage(
+                    role = MessageRole.AI,
+                    content = "图像生成失败: ${e.message}",
+                    type = MessageType.TEXT,
+                    isLoading = false,
+                    status = MessageStatus.FAILURE
+                )
+                updatedMessages.add(errorMessage)
+
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        messages = updatedMessages,
+                        isLoading = false,
+                        errorMessage = e.message
+                    )
+                }
+            }
+        }
+    }
+
+
+
     /**
      * 3. 处理“重试失败消息”（用户点击错误消息的重试按钮时调用）
      */

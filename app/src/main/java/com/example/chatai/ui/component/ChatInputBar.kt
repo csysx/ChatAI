@@ -113,31 +113,6 @@ fun ChatInputBar(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // 新增生成图片按钮
-            IconButton(
-                onClick = onSendClick,
-                enabled = !isLoading && inputText.isNotBlank(),
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(
-                        color = if (!isLoading && inputText.isNotBlank()) {
-                            MaterialTheme.colorScheme.secondary
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        },
-                        shape = RoundedCornerShape(50)
-                    )
-            ) {
-                Text(
-                    text = "图",
-                    color = if (!isLoading && inputText.isNotBlank()) {
-                        MaterialTheme.colorScheme.onSecondary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                    },
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
         }
     }
 }

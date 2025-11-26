@@ -1,6 +1,8 @@
 package com.example.chatai.ui.component
 import android.R.attr.contentDescription
 import android.R.attr.tint
+import androidx.benchmark.traceprocessor.Row
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
@@ -10,6 +12,8 @@ import com.example.chatai.model.data.ChatMessage
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -19,10 +23,16 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.IconButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
 
 
 /**
@@ -119,96 +129,121 @@ private fun UserMessageBubble(message: ChatMessage) {
 /**
  * AI 消息气泡（靠左显示，灰色背景，带头像）
  */
+
 @Composable
 private fun AIMessageBubble(
     message: ChatMessage,
     onRetryClick: () -> Unit
 ) {
     // Row：水平布局（AI头像 + 消息内容）
-    androidx.compose.foundation.layout.Row(
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        // 水平排列：靠左（AI消息在左边）
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Start,
-        // 垂直对齐：顶部对齐（避免头像和消息不对齐）
         verticalAlignment = Alignment.Top
     ) {
         // AI 头像（圆形，青色背景）
-        androidx.compose.foundation.layout.Box(
+        Box(
             modifier = Modifier
-                .size(36.dp) // 头像大小（36dp：适中）
+                .size(36.dp)
                 .background(
-                    color = MaterialTheme.colorScheme.secondary, // 辅助色（青色）
-                    shape = androidx.compose.foundation.shape.CircleShape // 圆形
+                    color = MaterialTheme.colorScheme.secondary,
+                    shape = CircleShape
                 )
-                .padding(4.dp) // 图标内边距
+                .padding(4.dp)
         ) {
-            // 图标：聊天图标（Android 提供的默认图标）
             Icon(
-            imageVector = Icons.AutoMirrored.Filled.Chat, // 直接使用 Icons.Filled.Chat
-            contentDescription = "AI 头像",
-            tint = MaterialTheme.colorScheme.onSecondary,
-            modifier = Modifier.fillMaxSize()
+                imageVector = Icons.AutoMirrored.Filled.Chat,
+                contentDescription = "AI 头像",
+                tint = MaterialTheme.colorScheme.onSecondary,
+                modifier = Modifier.fillMaxSize()
             )
         }
 
-        // 头像和消息之间的间距（8dp）
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
-        // AI 消息内容容器（灰色背景）
-        androidx.compose.foundation.layout.Box(
+        // AI 消息内容容器
+        Box(
             modifier = Modifier
                 .background(
-                    color = MaterialTheme.colorScheme.surfaceVariant, // 表面变体色（灰色）
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(
                         topStart = 4.dp,
                         topEnd = 16.dp,
                         bottomStart = 16.dp,
                         bottomEnd = 16.dp
-                    ) // 圆角：左上角小，其他角大（和用户气泡对称）
+                    )
                 )
                 .padding(
                     horizontal = 16.dp,
                     vertical = 12.dp
                 )
         ) {
-            // 根据消息状态显示不同内容
+            // 首先根据消息状态判断
             when (message.status) {
-                // 成功状态：显示 AI 回复内容
                 com.example.chatai.model.data.MessageStatus.SUCCESS -> {
-                    androidx.compose.material3.Text(
-                        text = message.content,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, // 灰色背景上的文字色（黑色/白色）
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    // 如果成功，再根据消息类型显示文本或图像
+                    when (message.type) {
+                        com.example.chatai.model.data.MessageType.TEXT -> {
+                            Text(
+                                text = message.content,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                        com.example.chatai.model.data.MessageType.IMAGE -> {
+                            // 使用 Coil 的 rememberAsyncImagePainter 加载网络图片
+                            val painter = rememberAsyncImagePainter(message.content)
+
+                            Box(
+                                modifier = Modifier
+                                    .size(300.dp) // 设置图片大小
+                                    .clip(RoundedCornerShape(8.dp)) // 图片圆角
+                            ) {
+                                Image(
+                                    painter = painter,
+                                    contentDescription = "Generated image",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop // 填充方式
+                                )
+
+                                // 可以添加一个加载中的占位符
+                                if (painter.state is AsyncImagePainter.State.Loading) {
+                                    Text("Loading image...")
+                                }
+                            }
+                        }
+                        // 未来可以在这里添加对 VIDEO 类型的支持
+                        else -> {
+                            Text("Unsupported message type")
+                        }
+                    }
                 }
-                // 失败状态：显示错误提示 + 重试按钮
                 com.example.chatai.model.data.MessageStatus.FAILURE -> {
-                    androidx.compose.foundation.layout.Row(
-                        // 垂直对齐：居中（文字和按钮对齐）
+                    Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        // 按钮和文字之间的间距（8dp）
                         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
                     ) {
-                        // 错误提示文字（红色）
-                        androidx.compose.material3.Text(
+                        Text(
                             text = message.content,
-                            color = MaterialTheme.colorScheme.error, // 错误色（红色）
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodyLarge
                         )
-                        // 重试按钮（刷新图标）
-                        androidx.compose.material3.IconButton(
-                            onClick = onRetryClick, // 点击事件（从外部传入）
-                            modifier = Modifier.size(24.dp) // 按钮大小
+                        IconButton(
+                            onClick = onRetryClick,
+                            modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Refresh, // 直接使用 Icons.Filled.Refresh
-                                contentDescription = "重试", tint = MaterialTheme.colorScheme.error
+                                imageVector = Icons.Filled.Refresh,
+                                contentDescription = "重试",
+                                tint = MaterialTheme.colorScheme.error
                             )
                         }
                     }
                 }
-                // 加载中状态：不在这显示（在列表底部单独显示）
-                com.example.chatai.model.data.MessageStatus.LOADING -> {}
+                com.example.chatai.model.data.MessageStatus.LOADING -> {
+                    // 加载状态可以显示一个进度条或文本
+                    Text("Thinking...")
+                }
             }
         }
     }

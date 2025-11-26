@@ -5,7 +5,6 @@ import com.example.chatai.model.config.ModelManager
 import com.example.chatai.model.data.ChatCompletionRequest
 import com.example.chatai.model.data.ChatMessage
 import com.example.chatai.model.data.ImageGenerationRequest
-import com.example.chatai.model.data.ImageGenerationResponse
 import com.example.chatai.model.data.MessageRole
 import javax.inject.Inject
 
@@ -18,11 +17,22 @@ class RemoteChatRepository @Inject constructor(
     // ---------------------------
     override suspend fun sendMessage(text: String): ChatMessage {
 
+        // 自定义 Prompt 模板
+        val systemPrompt = "你是一位 helpful 的助手，你的回答要简洁明了。"
+
         val modelName = ModelManager.chatModel   // ⭐用对话模型！
 
         val request = ChatCompletionRequest(
             model = modelName,
-            messages = listOf(ChatMessage(role = MessageRole.USER, content = text))
+            messages = listOf(// 添加系统消息作为第一个元素
+                ChatMessage(
+                    role = MessageRole.SYSTEM, // 假设你有一个 SYSTEM 角色
+                    content = systemPrompt
+                ),
+                ChatMessage(
+                    role = MessageRole.USER,
+                    content = text)
+            )
         )
 
         val response = apiService.createChatCompletion(request)
@@ -47,26 +57,17 @@ class RemoteChatRepository @Inject constructor(
     // ---------------------------
     // 2) 生成图片
     // ---------------------------
-    suspend fun generateImage(prompt: String): ImageGenerationResponse {
-
-        val modelName = ModelManager.imageModel  // ⭐用图片模型！
-
+    override suspend fun generateImage(prompt: String): String {
         val request = ImageGenerationRequest(
-            model = modelName,
             prompt = prompt,
-            size = "1024x1024",
-            n = 1
+            model = "Kwai-Kolors/Kolors" // 可替换为其他图像模型
         )
-
         val response = apiService.generateImage(request)
-
         if (response.isSuccessful) {
-            return response.body()
-                ?: throw Exception("Image API response body is null")
+            return response.body()?.data?.firstOrNull()?.url ?: throw Exception("生成图片失败")
         } else {
-            val error = response.errorBody()?.string()
-            Log.e("API_ERROR", "Image error: $error")
-            throw Exception("Image API failed: $error")
+            val errorBody = response.errorBody()?.string() ?: "未知错误"
+            throw Exception("图像生成失败: $errorBody")
         }
     }
 }

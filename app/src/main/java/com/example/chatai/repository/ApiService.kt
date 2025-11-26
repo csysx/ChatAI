@@ -19,9 +19,6 @@ interface ApiService {
     // 新增：图片生成接口
     @Headers("Content-Type: application/json")
     @POST("v1/images/generations")
-    suspend fun generateImage(
-        @Body request: ImageGenerationRequest
-    ): Response<ImageGenerationResponse>
-
+    suspend fun generateImage(@Body request: ImageGenerationRequest): Response<ImageGenerationResponse>
 
 }

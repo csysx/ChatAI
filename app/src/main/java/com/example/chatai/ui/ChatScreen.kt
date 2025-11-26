@@ -1,6 +1,6 @@
 package com.example.chatai.ui
 
-import android.util.Log
+import android.os.Build
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -19,19 +19,30 @@ import com.example.chatai.ui.component.ChatMessageList
 import com.example.chatai.ui.theme.AIChatAppTheme
 import com.example.chatai.viewmodel.ChatViewModel
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.MaterialTheme
+import com.example.chatai.model.data.GenerationMode
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.getValue
+import com.example.chatai.ui.component.GenerationModeSelector
 
 /**
  * 对话主界面（整合所有组件，连接 ViewModel）
  * @param viewModel 对话 ViewModel（从外部传入，便于测试）
  */
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel = viewModel() // 自动创建 ViewModel（Android 提供的便捷方法）
 ) {
+
+//    val generationMode = viewModel.generationMode.collectAsState().value
+    val generationMode by viewModel.generationMode.collectAsStateWithLifecycle()
+
     // 1. 从 ViewModel 获取 UI 状态（collectAsStateWithLifecycle：页面可见时才收集状态，节省资源）
     val uiState = viewModel.uiState.collectAsStateWithLifecycle()
     // 获取上下文（用于显示 Toast 提示）
@@ -70,24 +81,37 @@ fun ChatScreen(
         },
         // 底部内容：输入框（固定在底部）
         bottomBar = {
-            ChatInputBar(
-                inputText = uiState.value.inputText,
-                // 输入文本变化时，发送 UpdateInputText 意图给 ViewModel
-                onTextChange = { text ->
-                    viewModel.handleIntent(ChatIntent.UpdateInputText(text))
-                },
-                // 发送按钮点击时，发送 SendMessage 意图给 ViewModel
-                onSendClick = {
-                    viewModel.handleIntent(ChatIntent.SendMessage(uiState.value.inputText))
-                },
+            // 将功能栏和输入框组合成一个垂直布局
+            Column(
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+            ) {
+                // 1. 新增的下拉选择器
+                GenerationModeSelector(
+                    selectedMode = generationMode,
+                    onModeSelected = viewModel::setGenerationMode,
+                    isLoading = uiState.value.isLoading
+                )
 
-//                onImageClick = {
-//                    // 这里写点击图片按钮要做的事情，例如弹出选择图片对话框
-//                    // 目前可以先打印
-//                    Log.d("ChatScreen", "图片按钮点击")
-//                },
-                isLoading = uiState.value.isLoading,
-            )
+                // 2. 原有的输入框
+                ChatInputBar(
+                    inputText = uiState.value.inputText,
+                    onTextChange = { text ->
+                        viewModel.handleIntent(ChatIntent.UpdateInputText(text))
+                    },
+                    onSendClick = {
+                        // 根据当前选中的模式执行不同操作
+                        when (generationMode) {
+                            GenerationMode.TEXT ->
+                                viewModel.handleIntent(ChatIntent.SendMessage(uiState.value.inputText))
+                            GenerationMode.IMAGE ->
+                                viewModel.generateImage(uiState.value.inputText)
+                            GenerationMode.VIDEO ->
+                                Toast.makeText(context, "视频生成功能待实现", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    isLoading = uiState.value.isLoading
+                )
+            }
         },
         // 主内容区域背景色
         containerColor = MaterialTheme.colorScheme.background
@@ -103,12 +127,17 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(innerPadding) // 应用内边距（关键！避免消息被遮挡）
         )
+
     }
 }
+
+
+
 
 /**
  * 预览函数（Android Studio 专用，不用运行就能看到界面效果）
  */
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Preview(showBackground = true, name = "浅色模式预览")
 @Composable
 fun ChatScreenLightPreview() {
@@ -117,6 +146,7 @@ fun ChatScreenLightPreview() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Preview(showBackground = true, name = "深色模式预览")
 @Composable
 fun ChatScreenDarkPreview() {

@@ -55,6 +55,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.material3)
+//    implementation(libs.firebase.inappmessaging.ktx)
+    implementation(libs.androidx.benchmark.traceprocessor)
 
 
 
@@ -82,4 +84,5 @@ dependencies {
     implementation(libs.okhttp.logging)
 
     implementation("javax.inject:javax.inject:1")
+    implementation("io.coil-kt:coil-compose:2.4.0")
 }
