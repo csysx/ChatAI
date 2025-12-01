@@ -30,8 +30,9 @@ object RetrofitClient {
                     .build()
                 chain.proceed(requestWithAuth)
             }
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
+            .connectTimeout(60, TimeUnit.SECONDS) // 连接超时：60秒（视频生成需更长时间）
+            .readTimeout(300, TimeUnit.SECONDS) // 读取超时：5分钟（确保能接收大文件响应）
+            .writeTimeout(60, TimeUnit.SECONDS)
             .build()
 
         // 创建 Retrofit 实例

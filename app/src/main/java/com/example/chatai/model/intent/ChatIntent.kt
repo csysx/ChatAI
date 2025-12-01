@@ -11,9 +11,16 @@ sealed class ChatIntent {
     // 2. 用户点击发送按钮（参数：要发送的消息内容）
     data class SendMessage(val text: String) : ChatIntent()
 
+    data class GenerateImage(val prompt: String) : ChatIntent() // 图像生成
+    data class GenerateVideo(val prompt: String) : ChatIntent() // 视频生成
+    data class DeleteMessage(val messageId: String) : ChatIntent() // 删除单条消息
+    object ClearAllMessages : ChatIntent() // 清空所有消息
+
     // 3. 用户点击重试按钮（重新发送失败的消息）
     object RetryFailedMessage : ChatIntent()
 
     // 4. 清除错误提示（比如用户关闭错误弹窗）
     object ClearError : ChatIntent()
+
+
 }

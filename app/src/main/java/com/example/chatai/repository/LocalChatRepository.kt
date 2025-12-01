@@ -7,7 +7,7 @@ import kotlinx.coroutines.delay
 /**
  * 本地模拟数据仓库（第一阶段用：不调用真实API，直接返回模拟回复）
  */
-class LocalChatRepository() : ChatRepository {
+abstract class LocalChatRepository() : ChatRepository {
     override suspend fun sendMessage(text: String): ChatMessage {
         // 1. 模拟网络延迟
         delay(1500)

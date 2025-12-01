@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("kotlin-kapt")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -35,6 +37,8 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+        // 添加这一行，强制 Kapt 纠正存根生成
+        freeCompilerArgs += listOf("-Xjvm-default=all")
     }
     buildFeatures {
         compose = true
@@ -55,8 +59,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.material3)
-//    implementation(libs.firebase.inappmessaging.ktx)
     implementation(libs.androidx.benchmark.traceprocessor)
+    implementation(libs.androidx.camera.camera2.pipe)
 
 
 
@@ -85,4 +89,28 @@ dependencies {
 
     implementation("javax.inject:javax.inject:1")
     implementation("io.coil-kt:coil-compose:2.4.0")
+    // 添加 Hilt 依赖
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    kapt("com.google.dagger:hilt-android-compiler:2.51.1")
+
+     // room数据库本地存储
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    kapt(libs.androidx.room.compiler)
+
+    implementation(libs.exoplayer.core)
+    implementation(libs.exoplayer.ui)
+
+    implementation(libs.androidx.appcompat)
+
+}
+
+// 如果你的文件顶部 plugins 里用的是 id("kotlin-kapt")
+kapt {
+    correctErrorTypes = true
+    arguments {
+        arg("room.schemaLocation", "$projectDir/schemas")
+        // 关键：告诉 Room 将 Kotlin 的 Unit 视为 Java 的 void
+        arg("room.incremental", "true")
+    }
 }

@@ -11,27 +11,21 @@ import com.example.chatai.model.data.MessageStatus
 import com.example.chatai.model.data.MessageType
 import com.example.chatai.model.intent.ChatIntent
 import com.example.chatai.model.state.ChatUiState
-import com.example.chatai.repository.ChatRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.chatai.repository.RemoteChatRepository
-import com.example.chatai.repository.RetrofitClient
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * 对话 ViewModel（核心：接收用户意图，更新 UI 状态，调用仓库获取数据）
- * @param repository 数据仓库（默认用本地模拟实现，后续可替换）
  */
-class ChatViewModel(
-//    private val repository: ChatRepository = LocalChatRepository()
-    private val repository: ChatRepository = RemoteChatRepository(RetrofitClient.apiService)
-) : ViewModel() {
+class ChatViewModel(private val repository: RemoteChatRepository) : ViewModel() {
 
 
-    // 新增：当前生成模式（默认文字）
     private val _generationMode = MutableStateFlow(GenerationMode.TEXT)
     val generationMode: StateFlow<GenerationMode> = _generationMode.asStateFlow()
     // 切换生成模式
@@ -40,12 +34,35 @@ class ChatViewModel(
     }
 
 
-    // 1. 私有状态流（MutableStateFlow：可修改的状态，只在 ViewModel 内部用）
+    // 1私有状态流（MutableStateFlow：可修改的状态，只在 ViewModel 内部用）
     // 初始状态：空消息列表、空输入框、未加载、无错误
     private val _uiState = MutableStateFlow(ChatUiState())
 
-    // 2. 公开状态流（StateFlow：不可修改，只给 UI 读取，避免 UI 直接改状态）
+    // 公开状态流（StateFlow：不可修改，只给 UI 读取，避免 UI 直接改状态）
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+
+
+
+    private val defaultSessionId = "default_session"
+
+    init {
+        // 启动时加载历史消息（文本/图像/视频）
+        loadHistoryMessages()
+    }
+
+    // 加载历史消息（监听数据库变化，实时更新 UI）
+    private fun loadHistoryMessages() {
+        viewModelScope.launch {
+            repository.getMessages(defaultSessionId).collectLatest { messages ->
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        messages = messages.toMutableList(),
+                        isLoading = false
+                    )
+                }
+            }
+        }
+    }
 
     /**
      * 处理用户意图（UI 层调用这个方法，传递用户操作）
@@ -54,27 +71,20 @@ class ChatViewModel(
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     fun handleIntent(intent: ChatIntent) {
         when (intent) {
+
             is ChatIntent.UpdateInputText -> updateInputText(intent.text)
             is ChatIntent.SendMessage -> sendMessage(intent.text)
+            is ChatIntent.GenerateImage -> generateImage(intent.prompt)
+            is ChatIntent.GenerateVideo -> generateVideo(intent.prompt)
+            is ChatIntent.DeleteMessage -> deleteMessage(intent.messageId)
+            ChatIntent.ClearAllMessages -> clearAllMessages()
             ChatIntent.RetryFailedMessage -> retryFailedMessage()
             ChatIntent.ClearError -> clearError()
         }
     }
 
-    /**
-     * 1. 处理“更新输入框文本”（用户打字时调用）
-     */
-    private fun updateInputText(text: String) {
-        // 用 update 方法修改状态（保证线程安全，类似后端的线程安全集合）
-        _uiState.update { currentState ->
-            // 复制当前状态，只修改 inputText 字段（不可变对象思想，避免状态混乱）
-            currentState.copy(inputText = text)
-        }
-    }
 
-    /**
-     * 2.1 处理“发送消息”（用户点击发送按钮时调用）
-     */
+    // -------------------------- 文本消息 --------------------------
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     private fun sendMessage(text: String) {
         // 防呆：如果输入为空，不处理（避免发送空消息）
@@ -83,7 +93,8 @@ class ChatViewModel(
         // 步骤1：立即添加“用户消息”到 UI 状态（让用户看到自己发的消息，提升体验）
         val userMessage = ChatMessage(
             role = MessageRole.USER,
-            content = text
+            content = text,
+            sessionId = "default_session"
         )
         // 获取当前消息列表，转成可变列表（因为 StateFlow 的数据是不可变的）
         val currentMessages = _uiState.value.messages.toMutableList()
@@ -92,7 +103,7 @@ class ChatViewModel(
         // 步骤2：添加“AI加载中”消息（让用户知道 AI 正在回复）
         val loadingMessage = ChatMessage(
             role = MessageRole.AI,
-            content = "",  // 加载中无内容
+            content = "正在加载中....",  // 加载中无内容
             status = MessageStatus.LOADING  // 标记为加载中状态
         )
         currentMessages.add(loadingMessage)
@@ -112,20 +123,22 @@ class ChatViewModel(
         // Dispatchers.IO：指定在 IO 线程执行（适合网络/数据库操作，不占用 UI 线程）
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // 调用仓库获取 AI 回复（本地模拟，1.5秒后返回）
+
+                // 调用仓库获取 AI 回复
                 val aiMessage = repository.sendMessage(text)
 
-                // 步骤5：更新状态（替换“加载中”为真实 AI 回复）
+                // 更新状态
                 val updatedMessages = currentMessages.toMutableList()
                 updatedMessages.removeLast()  // 删除“加载中”消息
                 updatedMessages.add(aiMessage)  // 添加真实 AI 回复
 
-                // 更新 UI 状态（必须在主线程？不用！StateFlow 会自动切换到主线程）
+                // 更新 UI 状态
                 _uiState.update { currentState ->
                     currentState.copy(
                         messages = updatedMessages,
                         isLoading = false  // 加载完成，启用发送按钮
                     )
+
                 }
             } catch (e: Exception) {
                 // 步骤6：处理异常（比如模拟网络失败，显示错误消息）
@@ -148,11 +161,10 @@ class ChatViewModel(
                 }
             }
         }
+
     }
 
-    /**
-     * 2.2 生成图片（用户点击发送按钮时调用）
-     */
+    // -------------------------- 图像生成 --------------------------
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     fun generateImage(prompt: String) {
         // 1. 添加用户输入的文本消息
@@ -180,7 +192,9 @@ class ChatViewModel(
         _uiState.update { currentState ->
             currentState.copy(
                 messages = currentMessages,
-                isLoading = true
+                isLoading = true,
+                inputText = "",
+                errorMessage = null
             )
         }
 
@@ -240,31 +254,77 @@ class ChatViewModel(
         }
     }
 
-
-
-    /**
-     * 3. 处理“重试失败消息”（用户点击错误消息的重试按钮时调用）
-     */
+    // -------------------------- 视频生成 --------------------------
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-    private fun retryFailedMessage() {
-        // 获取当前消息列表
-        val currentMessages = _uiState.value.messages.toMutableList()
-        // 找到最后一条消息（如果是失败状态）
-        val lastMessage = currentMessages.lastOrNull() ?: return
-        if (lastMessage.status == MessageStatus.FAILURE) {
-            // 找到上一条用户消息（重新发送这条消息）
-            val userMessage = currentMessages.findLast { it.role == MessageRole.USER } ?: return
-            // 调用 sendMessage 重新发送（复用已有的发送逻辑）
-            sendMessage(userMessage.content)
+    private fun generateVideo(prompt: String) {
+        if (prompt.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+                repository.generateVideo(prompt) // 仓库已处理加载状态和本地存储
+            } catch (e: Exception) {
+                android.util.Log.e("VideoGenerationError", "视频生成失败", e)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "视频生成失败：${e.message ?: "未知错误"}"
+                    )
+                }
+            }
         }
     }
 
-    /**
-     * 4. 处理“清除错误”（错误提示显示后，自动清除）
-     */
-    private fun clearError() {
-        _uiState.update { currentState ->
-            currentState.copy(errorMessage = null)
+
+    // -------------------------- 本地存储操作 --------------------------
+    private fun deleteMessage(messageId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.deleteMessage(messageId)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(errorMessage = "删除失败：${e.message ?: "未知错误"}")
+                }
+            }
         }
+    }
+
+    private fun clearAllMessages() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.clearMessages(defaultSessionId)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(errorMessage = "清空失败：${e.message ?: "未知错误"}")
+                }
+            }
+        }
+    }
+
+
+
+    // -------------------------- 辅助方法 --------------------------
+    private fun updateInputText(text: String) {
+        // 用 update 方法修改状态（保证线程安全，类似后端的线程安全集合）
+        _uiState.update { currentState ->
+            // 复制当前状态，只修改 inputText 字段（不可变对象思想，避免状态混乱）
+            currentState.copy(inputText = text)
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    private fun retryFailedMessage() {
+        // 找到最后一条失败的消息，重试对应操作（文本/图像/视频）
+        val failedMessage = _uiState.value.messages.lastOrNull { it.status == MessageStatus.FAILURE }
+        failedMessage?.let {
+            when (it.type) {
+                MessageType.TEXT -> sendMessage(it.content)
+                MessageType.IMAGE -> generateImage(_uiState.value.inputText)
+                MessageType.VIDEO -> generateVideo(_uiState.value.inputText)
+            }
+        }
+    }
+
+    private fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
     }
 }

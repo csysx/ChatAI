@@ -1,7 +1,5 @@
 package com.example.chatai.ui.component
 
-import androidx.compose.animation.Animatable
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
@@ -22,19 +20,17 @@ import androidx.compose.ui.Alignment
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.automirrored.filled.Chat
 
 /**
  * AI 加载中动画（三个呼吸的小圆点）
  */
 @Composable
-fun LoadingIndicator() {
+fun LoadingIndicator(modifier: Modifier) {
     // Row：水平布局（AI头像 + 三个圆点）
     Row(
         verticalAlignment = Alignment.CenterVertically

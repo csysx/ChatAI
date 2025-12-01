@@ -1,11 +1,13 @@
 package com.example.chatai.repository
 
 import com.example.chatai.model.data.ChatMessage
+import kotlinx.coroutines.flow.Flow
+
 
 /**
- * 对话数据仓库接口（定义“获取AI回复”的方法，不关心具体实现）
- * 好处：后续切换“本地模拟”到“真实API”时，只需改实现类，不用改调用处（开闭原则）
+ * 聊天数据仓库接口（定义数据操作契约，支持多模态）
  */
+
 interface ChatRepository {
     /**
      * 发送消息并获取AI回复
@@ -16,4 +18,16 @@ interface ChatRepository {
 
     // 生成图片的方法，返回图片的 URL (String)
     suspend fun generateImage(prompt: String): String
+
+    // 新增：发送视频生成请求（返回视频消息）
+    suspend fun generateVideo(prompt: String): ChatMessage
+
+    // 查询指定会话的所有消息（文本/图像/视频）
+    fun getMessages(sessionId: String = "default_session"): Flow<List<ChatMessage>>
+
+    // 清空指定会话的消息
+    suspend fun clearMessages(sessionId: String = "default_session")
+
+    // 删除单条消息（比如删除生成失败的图片）
+    suspend fun deleteMessage(messageId: String)
 }

@@ -26,6 +26,10 @@ import androidx.compose.material3.MaterialTheme
 import com.example.chatai.model.data.GenerationMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.getValue
 import com.example.chatai.ui.component.GenerationModeSelector
 
@@ -71,6 +75,17 @@ fun ChatScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 },
+                actions = {
+                    // 添加清除按钮
+                    IconButton(onClick = {
+                        viewModel.handleIntent(ChatIntent.ClearAllMessages)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Clear Chat History"
+                        )
+                    }
+                },
                 // 导航栏样式（背景色、阴影）
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary, // 导航栏背景（紫色）
@@ -104,9 +119,9 @@ fun ChatScreen(
                             GenerationMode.TEXT ->
                                 viewModel.handleIntent(ChatIntent.SendMessage(uiState.value.inputText))
                             GenerationMode.IMAGE ->
-                                viewModel.generateImage(uiState.value.inputText)
+                                viewModel.handleIntent(ChatIntent.GenerateImage(uiState.value.inputText))
                             GenerationMode.VIDEO ->
-                                Toast.makeText(context, "视频生成功能待实现", Toast.LENGTH_SHORT).show()
+                                viewModel.handleIntent(ChatIntent.GenerateVideo(uiState.value.inputText))
                         }
                     },
                     isLoading = uiState.value.isLoading

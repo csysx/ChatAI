@@ -52,21 +52,3 @@ data class Usage(
 )
 
 
-
-//data class ImageGenerationRequest(
-//    val model: String,             // 模型名，例如 "siliconflow-image-v1"
-//    val prompt: String,            // 图片生成提示语
-//    val n: Int = 1,                // 生成图片数量
-//    val size: String = "1024x1024" // 图片尺寸，可选 "256x256", "512x512", "1024x1024"
-//)
-//
-//data class ImageGenerationResponse(
-//    val created: Long,
-//    val data: List<ImageData>
-//)
-//
-//data class ImageData(
-//    val url: String?,           // 图片 URL（在线访问）
-//    @SerializedName("b64_json")
-//    val b64Json: String?        // Base64 编码图片（可选）
-//)

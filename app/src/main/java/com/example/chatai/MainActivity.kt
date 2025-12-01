@@ -8,8 +8,13 @@ import com.example.chatai.viewmodel.ChatViewModel
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModelProvider
+import com.example.chatai.repository.local.AppDatabase
+import com.example.chatai.repository.RemoteChatRepository
+import com.example.chatai.repository.RetrofitClient
 import com.example.chatai.ui.ChatScreen
-
+import com.example.chatai.viewmodel.ViewModelFactory
 
 
 class MainActivity : ComponentActivity() {
@@ -17,16 +22,14 @@ class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 创建 ViewModelFactory 实例
+        val factory = ViewModelFactory(applicationContext)
+        // 使用 Factory 创建 ViewModel
+        val viewModel = ViewModelProvider(this, factory)[ChatViewModel::class.java]
+
         setContent {
             AIChatAppTheme {
-
-//                // 创建 Repository 实例
-                val repository = com.example.chatai.repository.RemoteChatRepository(com.example.chatai.repository.RetrofitClient.apiService)
-                // 2. 创建 Factory，把 repository 塞进去
-                val factory = com.example.chatai.viewmodel.ViewModelFactory(repository)
-                // 3. 获取 ViewModel，使用刚才的 factory
-                val viewModel: ChatViewModel = viewModel(factory = factory)
-                // 4. 传入 ViewModel 给 Screen
                 ChatScreen(viewModel = viewModel)
             }
         }

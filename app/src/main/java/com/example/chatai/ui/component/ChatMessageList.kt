@@ -1,7 +1,4 @@
 package com.example.chatai.ui.component
-import android.R.attr.contentDescription
-import android.R.attr.tint
-import androidx.benchmark.traceprocessor.Row
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
+import com.example.chatai.model.data.MessageType
 
 
 /**
@@ -82,7 +80,7 @@ fun ChatMessageList(
         // 如果最后一条消息是“加载中”，显示加载动画
         if (messages.lastOrNull()?.status == com.example.chatai.model.data.MessageStatus.LOADING) {
             item {
-                LoadingIndicator()
+                LoadingIndicator(modifier = Modifier.fillMaxWidth().padding(8.dp))
             }
         }
     }
@@ -212,7 +210,12 @@ private fun AIMessageBubble(
                                 }
                             }
                         }
-                        // 未来可以在这里添加对 VIDEO 类型的支持
+                        MessageType.VIDEO -> {
+                            VideoMessageItem( // 新增视频组件
+                                message = message
+                            )
+                        }
+                        // 未来可以在这里添加对 其他类型的支持
                         else -> {
                             Text("Unsupported message type")
                         }
