@@ -1,6 +1,9 @@
 package com.example.chatai.ui.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -46,20 +49,29 @@ fun VideoMessageItem(
     ) {
         when (message.status) {
             // 1. 加载中状态：显示加载动画 + 提示文本
-            MessageStatus.LOADING -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp), // 固定加载框高度
-                    contentAlignment = Alignment.Center
-                ) {
+            MessageStatus.LOADING -> {                Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.05f)), // 加个浅背景
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     LoadingIndicator(modifier = Modifier.size(48.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "视频生成中...",
-                        modifier = Modifier.padding(top = 8.dp),
-                        textAlign = TextAlign.Center
+                        text = "AI 正在绘制每一帧...",
+                        style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "视频生成通常需要 1-3 分钟，请耐心等待",
+                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
+            }
             }
 
             // 2. 成功状态：显示视频播放器

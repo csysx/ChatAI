@@ -33,7 +33,7 @@ class ViewModelFactory(private val context: Context) : ViewModelProvider.Factory
             // 4. 创建 Repository 实例，并传入所有依赖
             val repository = RemoteChatRepository(apiService, chatDao,context)
             // 5. 创建并返回 ViewModel 实例
-            return ChatViewModel(repository) as T
+            return ChatViewModel(repository, context ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

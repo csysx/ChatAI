@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.benchmark.traceprocessor)
     implementation(libs.androidx.camera.camera2.pipe)
+    implementation(libs.androidx.compose.foundation)
 
 
 

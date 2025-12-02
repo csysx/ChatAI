@@ -20,7 +20,9 @@ interface ChatRepository {
     suspend fun generateImage(prompt: String): String
 
     // 新增：发送视频生成请求（返回视频消息）
-    suspend fun generateVideo(prompt: String): ChatMessage
+
+
+    suspend fun generateVideo(prompt: String,imagePath: String? = null): ChatMessage
 
     // 查询指定会话的所有消息（文本/图像/视频）
     fun getMessages(sessionId: String = "default_session"): Flow<List<ChatMessage>>

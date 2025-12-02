@@ -27,6 +27,8 @@ data class ChatMessage(
     val isLoading: Boolean = false,
     val timestamp: Long = System.currentTimeMillis(), // 新增：用于本地排序和展示
     val sessionId: String = "default_session" // 新增：会话 ID，支持后续多会话扩展
+//    val sessionId: String, // 关联 Session.id（不再默认，需显式传入）
+//    val userId: String = "default_user" // 预留：关联用户
 )
 
 /**

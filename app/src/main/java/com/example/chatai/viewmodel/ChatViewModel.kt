@@ -1,5 +1,7 @@
 package com.example.chatai.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
@@ -17,14 +19,21 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.chatai.repository.RemoteChatRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import java.io.File
+import javax.inject.Inject
 
 /**
  * 对话 ViewModel（核心：接收用户意图，更新 UI 状态，调用仓库获取数据）
  */
-class ChatViewModel(private val repository: RemoteChatRepository) : ViewModel() {
-
+@HiltViewModel
+class ChatViewModel @Inject constructor(
+    private val repository: RemoteChatRepository,
+    @ApplicationContext private val context: Context // Inject Context here
+) : ViewModel() {
 
     private val _generationMode = MutableStateFlow(GenerationMode.TEXT)
     val generationMode: StateFlow<GenerationMode> = _generationMode.asStateFlow()
@@ -255,13 +264,31 @@ class ChatViewModel(private val repository: RemoteChatRepository) : ViewModel() 
     }
 
     // -------------------------- 视频生成 --------------------------
+    // 1. 新增状态：暂存用户选择的图片 URI
+    private val _selectedImageUri = MutableStateFlow<Uri?>(null)
+    val selectedImageUri = _selectedImageUri.asStateFlow()
+
+    // 用户选中图片后调用此方法
+    fun setSelectedImage(uri: Uri?) {
+        _selectedImageUri.value = uri
+    }
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     private fun generateVideo(prompt: String) {
         if (prompt.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val currentUri = _selectedImageUri.value
+                // 如果有选图，将 URI 转为本地缓存文件路径
+                val imagePath = currentUri?.let { uri ->
+                    uriToFile(this@ChatViewModel.context, uri)?.absolutePath
+                }
                 _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-                repository.generateVideo(prompt) // 仓库已处理加载状态和本地存储
+
+                repository.generateVideo(prompt,imagePath) // 仓库已处理加载状态和本地存储
+
+                // 发送成功后清空选图
+                _selectedImageUri.value = null
+
             } catch (e: Exception) {
                 android.util.Log.e("VideoGenerationError", "视频生成失败", e)
                 _uiState.update {
@@ -326,5 +353,20 @@ class ChatViewModel(private val repository: RemoteChatRepository) : ViewModel() 
 
     private fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    // 辅助方法：将 URI 复制到私有缓存目录变成 File (Android 10+ 必须这样做)
+    private fun uriToFile(context: Context, uri: Uri): File? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+            val tempFile = File(context.cacheDir, "upload_temp.jpg")
+            tempFile.outputStream().use { output ->
+                inputStream.copyTo(output)
+            }
+            tempFile
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 }

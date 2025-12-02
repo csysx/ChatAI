@@ -19,18 +19,30 @@ import com.example.chatai.ui.component.ChatMessageList
 import com.example.chatai.ui.theme.AIChatAppTheme
 import com.example.chatai.viewmodel.ChatViewModel
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.MaterialTheme
 import com.example.chatai.model.data.GenerationMode
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.chatai.ui.component.GenerationModeSelector
 
 /**
@@ -47,10 +59,20 @@ fun ChatScreen(
 //    val generationMode = viewModel.generationMode.collectAsState().value
     val generationMode by viewModel.generationMode.collectAsStateWithLifecycle()
 
-    // 1. 从 ViewModel 获取 UI 状态（collectAsStateWithLifecycle：页面可见时才收集状态，节省资源）
+    // 从 ViewModel 获取 UI 状态（collectAsStateWithLifecycle：页面可见时才收集状态，节省资源）
     val uiState = viewModel.uiState.collectAsStateWithLifecycle()
+    // --- 新增：获取选中的图片 URI ---
+    val selectedImageUri by viewModel.selectedImageUri.collectAsStateWithLifecycle()
+
     // 获取上下文（用于显示 Toast 提示）
     val context = LocalContext.current
+
+    // --- 新增：图片选择器 Launcher ---
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        viewModel.setSelectedImage(uri) // 将选中的图片存入 ViewModel
+    }
 
     // 2. 错误提示：当有错误信息时，显示 Toast（3秒后自动清除）
     LaunchedEffect(uiState.value.errorMessage) {
@@ -107,6 +129,42 @@ fun ChatScreen(
                     isLoading = uiState.value.isLoading
                 )
 
+                if (selectedImageUri != null) {
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        AsyncImage(
+                            model = selectedImageUri,
+                            contentDescription = "Selected Image",
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentScale = ContentScale.Crop
+                        )
+                        // 删除图片的按钮
+                        IconButton(
+                            onClick = { viewModel.setSelectedImage(null) },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(20.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.error,
+                                    androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+                                )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Remove Image",
+                                tint = MaterialTheme.colorScheme.onError,
+                                modifier = Modifier.padding(2.dp)
+                            )
+                        }
+                    }
+                }
+
+
                 // 2. 原有的输入框
                 ChatInputBar(
                     inputText = uiState.value.inputText,
@@ -121,10 +179,17 @@ fun ChatScreen(
                             GenerationMode.IMAGE ->
                                 viewModel.handleIntent(ChatIntent.GenerateImage(uiState.value.inputText))
                             GenerationMode.VIDEO ->
-                                viewModel.handleIntent(ChatIntent.GenerateVideo(uiState.value.inputText))
+                                viewModel.handleIntent(ChatIntent.GenerateVideo(uiState.value.inputText,selectedImageUri?.toString()))
                         }
                     },
-                    isLoading = uiState.value.isLoading
+                    isLoading = uiState.value.isLoading,
+                    isVideoMode = (generationMode == GenerationMode.VIDEO),
+                    // 传递点击图片的事件
+                    onImagePickClick = {
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    }
                 )
             }
         },

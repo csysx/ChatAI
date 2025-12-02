@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Icon
@@ -37,7 +38,10 @@ fun ChatInputBar(
     onTextChange: (String) -> Unit,
     onSendClick: () -> Unit,
 //    onImageClick: () -> Unit, // 新增图片生成点击事件
-    isLoading: Boolean
+    isLoading: Boolean,
+
+    isVideoMode: Boolean = false, // 是否是视频模式
+    onImagePickClick: () -> Unit = {} // 点击上传图片的回调
 ) {
     Box(
         modifier = Modifier
@@ -81,6 +85,20 @@ fun ChatInputBar(
             )
 
             Spacer(modifier = Modifier.width(8.dp))
+
+            // --- 新增：上传图片按钮 (只在视频模式且非加载状态下显示) ---
+            if (isVideoMode && !isLoading) {
+                IconButton(
+                    onClick = onImagePickClick,
+                    modifier = Modifier.padding(end = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AddPhotoAlternate,
+                        contentDescription = "Upload Image",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
 
             // 发送按钮
             IconButton(

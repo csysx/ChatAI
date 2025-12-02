@@ -22,6 +22,10 @@ import javax.inject.Inject
 import android.graphics.Bitmap
 import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.core.net.toUri
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 
 class RemoteChatRepository @Inject constructor(
@@ -160,7 +164,7 @@ class RemoteChatRepository @Inject constructor(
     // ---------------------------
     // 生成视频
     // ---------------------------
-    override suspend fun generateVideo(prompt: String): ChatMessage {
+    override suspend fun generateVideo(prompt: String,imagePath: String?): ChatMessage {
 
         // 1. 存用户 prompt 消息
         val userMsg = ChatMessage(
@@ -185,15 +189,38 @@ class RemoteChatRepository @Inject constructor(
 
         try {
 
-            val requestBody= VideoGenerationRequest(
-                model = "Wan-AI/Wan2.2-T2V-A14B",
-                prompt = prompt,
-                imageSize = "1280x720",
-            )
 
-            Log.d("SubmitRequest", "提交视频任务请求,$requestBody")
+            val requestBody = if (imagePath != null) {
+                // ---- 分支 A: 图生视频 (I2V) ----
+                val file = File(imagePath)
+                if (!file.exists()) throw Exception("图片文件不存在")
 
-            // 3. 先发送 submit
+                // 1. 将本地文件转为 Base64 字符串
+                // 格式必须是: "data:image/jpeg;base64,......"
+                val base64Image = file.readBytes().let { bytes ->
+                    val base64Str = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                    "data:image/jpeg;base64,$base64Str"
+                }
+
+                // 2. 构造 JSON 请求
+                // ⚠️ 修正模型名称：必须是 Wan2.1-I2V-14B (Wan2.2 不存在)
+                // ⚠️ 分辨率：Wan 2.1 I2V 推荐 1280x720
+                VideoGenerationRequest(
+                    model = "Wan-AI/Wan2.2-I2V-A14B",
+                    prompt = prompt,
+                    image = base64Image, // 传 Base64 字符串
+                    imageSize = "1280x720",
+                    seed = (1..100000).random() // 随机种子
+                )
+            } else {
+                // ---- 分支 B: 文生视频 (T2V) ----
+                // ⚠️ 修正模型名称：推荐 LTX-Video (Wan2.2 T2V 也不存在)
+                VideoGenerationRequest(
+                    model = "Lightricks/LTX-Video",
+                    prompt = prompt,
+                    imageSize = "768x512" // LTX-Video 必须用这个分辨率
+                )
+            }
             val submitResp = apiService.submitVideoTask(requestBody)
 
 
@@ -204,10 +231,11 @@ class RemoteChatRepository @Inject constructor(
             val requestId = submitResp.body()!!.requestId
             if (requestId.isBlank()) throw Exception("submit 未返回 requestId")
 
+
             // 4. 开始轮询 status
             var finalUrl: String? = null
             repeat(500) {   // 最多轮询 30 次（约 30 秒）
-                delay(1000)
+                delay(3000)
 
                 val statusResp = apiService.checkVideoStatus(VideoStatusRequest(requestId))
 
@@ -218,7 +246,7 @@ class RemoteChatRepository @Inject constructor(
                 val body = statusResp.body()!!
 
                 when (body.status) {
-                    "Pending", "Running" -> {
+                    "Pending", "Running","InProgress","Processing" -> {
                         // 继续等
                     }
 
