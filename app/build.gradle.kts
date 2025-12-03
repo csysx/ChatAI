@@ -94,6 +94,12 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.51.1")
     kapt("com.google.dagger:hilt-android-compiler:2.51.1")
 
+    // 添加：Navigation Compose
+    implementation("androidx.navigation:navigation-compose:2.8.7")
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+    //Lifecycle KTX 库
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
+
      // room数据库本地存储
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

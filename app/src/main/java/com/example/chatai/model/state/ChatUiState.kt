@@ -12,8 +12,9 @@ import com.example.chatai.model.data.ChatMessage
  */
 data class ChatUiState(
     // 初始状态：空消息列表、空输入框、未加载、无错误
-    val messages: List<ChatMessage> = emptyList(),
+    public val messages: List<ChatMessage> = emptyList(),
     val inputText: String = "",
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val currentSessionId: String = "" // 仅存储当前活跃会话ID（用于关联消息）
 )

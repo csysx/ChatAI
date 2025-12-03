@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.chatai.repository.local.AppDatabase
 import com.example.chatai.repository.RemoteChatRepository
+import com.example.chatai.repository.RemoteSessionRepository
 import com.example.chatai.repository.RetrofitClient
+import com.example.chatai.repository.SessionRepository
 
 
 //class ViewModelFactory(private val repository: ChatRepository) : ViewModelProvider.Factory {
@@ -28,12 +30,20 @@ class ViewModelFactory(private val context: Context) : ViewModelProvider.Factory
             val database = AppDatabase.getDatabase(context)
             // 2. 获取 ChatDao 实例
             val chatDao = database.chatDao()
+            val sessionDao = database.sessionDao()
             // 3. 获取 ApiService 实例
             val apiService = RetrofitClient.apiService
             // 4. 创建 Repository 实例，并传入所有依赖
-            val repository = RemoteChatRepository(apiService, chatDao,context)
+            val chatRepository = RemoteChatRepository(apiService, chatDao, context)
+            val sessionRepository: RemoteSessionRepository = RemoteSessionRepository(sessionDao)
             // 5. 创建并返回 ViewModel 实例
-            return ChatViewModel(repository, context ) as T
+//            return ChatViewModel(repository, context ) as T
+            if (modelClass.isAssignableFrom(ChatViewModel::class.java)) {
+                return ChatViewModel(chatRepository,context) as T
+            }
+            if (modelClass.isAssignableFrom(SessionViewModel::class.java)) {
+                return SessionViewModel(sessionRepository) as T
+            }
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

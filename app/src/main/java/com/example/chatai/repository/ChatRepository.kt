@@ -14,15 +14,13 @@ interface ChatRepository {
      * @param text 用户发送的消息内容
      * @return AI 回复的消息（带角色、内容等信息）
      */
-    suspend fun sendMessage(text: String): ChatMessage
+    suspend fun sendMessage(text: String,sessionId: String): ChatMessage
 
     // 生成图片的方法，返回图片的 URL (String)
-    suspend fun generateImage(prompt: String): String
+    suspend fun generateImage(prompt: String,sessionId: String): ChatMessage
 
-    // 新增：发送视频生成请求（返回视频消息）
-
-
-    suspend fun generateVideo(prompt: String,imagePath: String? = null): ChatMessage
+    // 发送视频生成请求（返回视频消息）
+    suspend fun generateVideo(prompt: String,imagePath: String? = null,sessionId: String): ChatMessage
 
     // 查询指定会话的所有消息（文本/图像/视频）
     fun getMessages(sessionId: String = "default_session"): Flow<List<ChatMessage>>
@@ -32,4 +30,8 @@ interface ChatRepository {
 
     // 删除单条消息（比如删除生成失败的图片）
     suspend fun deleteMessage(messageId: String)
+
+
+
+
 }
