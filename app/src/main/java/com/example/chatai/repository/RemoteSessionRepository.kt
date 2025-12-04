@@ -1,6 +1,7 @@
 package com.example.chatai.repository
 
 import com.example.chatai.model.data.Session
+import com.example.chatai.repository.local.ChatDao
 import com.example.chatai.repository.local.SessionDao
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -9,7 +10,7 @@ import javax.inject.Inject
  * 会话管理实现（独立文件，仅处理会话逻辑）
  */
 class RemoteSessionRepository (
-    private val sessionDao: SessionDao
+    private val sessionDao: SessionDao,
 ) : SessionRepository {
 
     override suspend fun createNewSession(userId: String): Session {
@@ -51,4 +52,5 @@ class RemoteSessionRepository (
         }
         sessionDao.updateSession(session.copy(title = title))
     }
+
 }

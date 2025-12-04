@@ -24,4 +24,6 @@ interface SessionRepository {
 
     // 为会话设置标题（从首条消息提取）
     suspend fun setSessionTitleByFirstMessage(sessionId: String, firstMessage: String)
+
+
 }
