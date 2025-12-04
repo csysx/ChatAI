@@ -1,18 +1,19 @@
 package com.example.chatai.model.data
 
+import android.R
 import com.google.gson.annotations.SerializedName
 
 // API 请求体模型
 data class ChatCompletionRequest(
     val model: String,
-    val messages: List<ChatMessage>
+    val messages: List<Any>
 )
 
 // API 响应体模型
 data class ChatCompletionResponse(
     val id: String,
     @SerializedName("object")
-    val objectX: String, // 注意：object 是 Kotlin 关键字，需要用 @SerializedName 或改名
+    val objectX: String,
     val created: Long,
     val model: String,
     val choices: List<Choice>,

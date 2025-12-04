@@ -110,7 +110,7 @@ class ChatViewModel @Inject constructor(
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     private fun sendMessage(text: String, sessionId: String) {
         if (text.isBlank() || sessionId.isBlank()) return
-        
+
 
         val userMessage = ChatMessage(
             role = MessageRole.USER,

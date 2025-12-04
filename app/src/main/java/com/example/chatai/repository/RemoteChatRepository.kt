@@ -18,11 +18,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.File
-import javax.inject.Inject
 import android.graphics.Bitmap
 import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.core.net.toUri
-
+import kotlinx.coroutines.flow.first
 
 
 class RemoteChatRepository(
@@ -30,6 +29,8 @@ class RemoteChatRepository(
     private val chatDao: ChatDao, // <-- 注入 ChatDao
     @ApplicationContext private val context: Context,
 ) : ChatRepository {
+
+    private val MAX_CONTEXT_MESSAGES = 20
 
     private val currentUserId = "default_user" // 当前用户 ID
 
@@ -45,30 +46,28 @@ class RemoteChatRepository(
             content = text,
             type = MessageType.TEXT,
             status = MessageStatus.SUCCESS,
-            sessionId = sessionId
+            sessionId = sessionId,
         )
         chatDao.insertMessage(userTextMessage)
+
+        // 获取当前会话的历史消息（作为上下文）
+        val historyMessages = getHistoryMessagesForContext(sessionId)
+        // 拼接上下文（历史消息 + 当前用户消息）
+        val contextMessages = historyMessages + userTextMessage
+        // 转为API需要的格式
+        val apiMessages = contextMessages.map { it.toApiMessage() }
+
 
 
         // 2. 调用文本生成 API------------------
 
         // 自定义 Prompt 模板
         val systemPrompt = "你是一位 helpful 的助手，你的回答要简洁明了。"
-//        val modelName = ModelManager.chatModel   // ⭐用对话模型！
         val modelName = "Qwen/Qwen3-8B"
 
         val request = ChatCompletionRequest(
             model = modelName,
-            messages = listOf(// 添加系统消息作为第一个元素
-                ChatMessage(
-                    role = MessageRole.SYSTEM, // 假设你有一个 SYSTEM 角色
-                    content = systemPrompt
-                ),
-                ChatMessage(
-                    role = MessageRole.USER,
-                    content = text
-                )
-            )
+            messages = listOf(ApiMessage("system", systemPrompt)) + apiMessages
         )
 
         val response = apiService.createChatCompletion(request)
@@ -128,10 +127,21 @@ class RemoteChatRepository(
         )
         chatDao.insertMessage(aiLoadingMessage)
 
+
+        //比如根据历史对话理解用户需求
+        val historyMessages = getHistoryMessagesForContext(sessionId)
+        val contextPrompt = if (historyMessages.isNotEmpty()) {
+            // 拼接历史对话摘要（避免prompt过长）
+            val historySummary = historyMessages.takeLast(20).joinToString("，") { "${it.role}:${it.content}" }
+            "基于历史对话：$historySummary，生成图像：$prompt"
+        } else {
+            prompt
+        }
+
         // 3. 调用图像生成 API
         val request = ImageGenerationRequest(
-            prompt = prompt,
-            model = "Kwai-Kolors/Kolors"
+            prompt = contextPrompt,
+            model = "Qwen/Qwen-Image"
         )
         val response = apiService.generateImage(request)
         if (response.isSuccessful) {
@@ -193,6 +203,14 @@ class RemoteChatRepository(
         )
         chatDao.insertMessage(loadingMsg)
 
+        val historyMessages = getHistoryMessagesForContext(sessionId)
+        val contextPrompt = if (historyMessages.isNotEmpty()) {
+            val historySummary = historyMessages.takeLast(10).joinToString("，") { "${it.role}:${it.content}" }
+            "基于历史对话：$historySummary，生成视频：$prompt"
+        } else {
+            prompt
+        }
+
         try {
 
 
@@ -214,17 +232,17 @@ class RemoteChatRepository(
                 // ⚠️ 分辨率：Wan 2.1 I2V 推荐 1280x720
                 VideoGenerationRequest(
                     model = "Wan-AI/Wan2.2-I2V-A14B",
-                    prompt = prompt,
+                    prompt = contextPrompt,
                     image = base64Image, // 传 Base64 字符串
                     imageSize = "1280x720",
                     seed = (1..100000).random() // 随机种子
                 )
             } else {
                 // ---- 分支 B: 文生视频 (T2V) ----
-                // ⚠️ 修正模型名称：推荐 LTX-Video (Wan2.2 T2V 也不存在)
+                // ⚠️ 修正模型名称：推荐 LTX-Video (此模型已经过期了)
                 VideoGenerationRequest(
                     model = "Lightricks/LTX-Video",
-                    prompt = prompt,
+                    prompt = contextPrompt,
                     imageSize = "768x512" // LTX-Video 必须用这个分辨率
                 )
             }
@@ -335,10 +353,15 @@ class RemoteChatRepository(
     }
 
     // -------------------------- 辅助方法 --------------------------
-    // 将 ChatMessage 转成 API 所需的 Message 格式（适配你原有 API 逻辑）
+    // 将 ChatMessage 转成 API 所需的 Message 格式
     private fun ChatMessage.toApiMessage(): ApiMessage {
+        val apiRole = when (role) {
+            MessageRole.USER -> "user"
+            MessageRole.AI -> "assistant"
+            MessageRole.SYSTEM -> "system"
+        }
         return ApiMessage(
-            role = this.role.name.lowercase(),
+            role = apiRole,
             content = this.content
         )
     }
@@ -354,4 +377,20 @@ class RemoteChatRepository(
     }
 
 
+    // -------------------------- 核心工具方法：获取会话历史消息（用于上下文）--------------------------
+    /**
+     * 获取当前会话的历史消息（按时间升序）
+     * 1. 过滤掉加载中/失败的消息（避免干扰上下文）
+     * 2. 限制最大条数（避免token超标）
+     */
+    private suspend fun getHistoryMessagesForContext(sessionId: String): List<ChatMessage> {
+        return withContext(Dispatchers.IO) {
+            chatDao.getMessagesBySessionId(sessionId) // 按sessionId查询当前会话消息
+                .first() // 取当前最新的消息列表（Flow转一次性列表）
+                .filter { it.status == MessageStatus.SUCCESS } // 只保留成功的消息
+                .sortedBy { it.timestamp } // 按时间升序（最早的消息在前）
+                .takeLast(MAX_CONTEXT_MESSAGES) // 限制最大条数（避免token过多）
+        }
+    }
 }
+
