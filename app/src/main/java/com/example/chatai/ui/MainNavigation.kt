@@ -76,7 +76,7 @@ private fun initViewModels(context: Context): Pair<ChatViewModel, SessionViewMod
     val chatRepository = RemoteChatRepository(apiService, chatDao,context)
     val sessionRepository = RemoteSessionRepository(sessionDao)
     // 步骤5：创建 ViewModel
-    val chatViewModel = ChatViewModel(chatRepository, context)
+    val chatViewModel = ChatViewModel(chatRepository, sessionRepository,context)
     val sessionViewModel = SessionViewModel(sessionRepository)
     // 返回两个 ViewModel（用Pair封装，简洁）
     return Pair(chatViewModel, sessionViewModel)

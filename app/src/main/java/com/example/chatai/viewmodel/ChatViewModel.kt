@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.copy
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chatai.model.data.ChatMessage
@@ -35,6 +36,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: RemoteChatRepository,
+    private val sessionRepository: SessionRepository,
     @ApplicationContext private val context: Context, // Inject Context here
 ) : ViewModel() {
 
@@ -74,15 +76,7 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-//
-//    // 加载指定会话的消息
-//    private fun loadSessionMessages(sessionId: String) {
-//        viewModelScope.launch {
-//           chatRepository.getMessages(sessionId).collectLatest { messages ->
-//                _uiState.update { it.copy(messages = messages.toMutableList()) }
-//            }
-//        }
-//    }
+
 
 
     /**
@@ -145,6 +139,8 @@ class ChatViewModel @Inject constructor(
                 // 注意：这里应该使用参数传入的 sessionId，而不是类变量 currentSessionId，防止上下文不一致
                 val aiMessage = chatRepository.sendMessage(text, sessionId)
 
+
+
                 // 2. 成功更新：基于【最新的】currentState 移除最后一条(Loading)并添加新消息
                 _uiState.update { currentState ->
                     val newMessages = currentState.messages.toMutableList()
@@ -158,6 +154,15 @@ class ChatViewModel @Inject constructor(
                         messages = newMessages,
                         isLoading = false
                     )
+                }
+                // 获取当前会话信息
+                val session = sessionRepository.getSessionById(sessionId)
+                val isDefaultTitle = session?.title == "新会话"
+                if (session != null && isDefaultTitle) {
+                    // 截取前 20 个字作为标题
+                    val newTitle = if (text.length > 20) text.take(20) + "..." else text
+                    // 调用 Repository 更新标题
+                    sessionRepository.updateSession(session.copy(title = newTitle))
                 }
             } catch (e: Exception) {
                 // 3. 失败更新
@@ -228,7 +233,6 @@ class ChatViewModel @Inject constructor(
             try {
                 val aiMessage = chatRepository.generateImage(prompt,sessionId)
 
-
                 _uiState.update { currentState ->
                     val newMessages = currentState.messages.toMutableList()
                     if (newMessages.isNotEmpty() && newMessages.last().role == MessageRole.AI
@@ -241,6 +245,15 @@ class ChatViewModel @Inject constructor(
                         messages = newMessages,
                         isLoading = false
                     )
+                }
+                // 获取当前会话信息
+                val session = sessionRepository.getSessionById(sessionId)
+                val isDefaultTitle = session?.title == "新会话"
+                if (session != null && isDefaultTitle) {
+                    // 截取前 20 个字作为标题
+                    val newTitle = if (prompt.length > 20) prompt.take(20) + "..." else prompt
+                    // 调用 Repository 更新标题
+                    sessionRepository.updateSession(session.copy(title = newTitle))
                 }
 
             } catch (e: Exception) {
@@ -281,7 +294,7 @@ class ChatViewModel @Inject constructor(
         _selectedImageUri.value = uri
     }
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-    private fun generateVideo(prompt: String,sessionId: String) {
+    private  fun generateVideo(prompt: String, sessionId: String) {
         if (prompt.isBlank()|| sessionId.isBlank()) return
 
         val userMessage = ChatMessage(
@@ -315,9 +328,10 @@ class ChatViewModel @Inject constructor(
                 errorMessage = null
             )
         }
-
         viewModelScope.launch(Dispatchers.IO) {
             try {
+
+
                 val currentUri = _selectedImageUri.value
                 // 如果有选图，将 URI 转为本地缓存文件路径
                 val imagePath = currentUri?.let { uri ->
@@ -344,7 +358,15 @@ class ChatViewModel @Inject constructor(
 
 
                 _selectedImageUri.value = null
-
+                // 获取当前会话信息
+                val session = sessionRepository.getSessionById(sessionId)
+                val isDefaultTitle = session?.title == "新会话"
+                if (session != null && isDefaultTitle) {
+                    // 截取前 20 个字作为标题
+                    val newTitle = if (prompt.length > 20) prompt.take(20) + "..." else prompt
+                    // 调用 Repository 更新标题
+                    sessionRepository.updateSession(session.copy(title = newTitle))
+                }
 
             } catch (e: Exception) {
 

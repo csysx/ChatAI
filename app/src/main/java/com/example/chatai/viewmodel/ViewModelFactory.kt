@@ -39,7 +39,7 @@ class ViewModelFactory(private val context: Context) : ViewModelProvider.Factory
             // 5. 创建并返回 ViewModel 实例
 //            return ChatViewModel(repository, context ) as T
             if (modelClass.isAssignableFrom(ChatViewModel::class.java)) {
-                return ChatViewModel(chatRepository,context) as T
+                return ChatViewModel(chatRepository,sessionRepository,context) as T
             }
             if (modelClass.isAssignableFrom(SessionViewModel::class.java)) {
                 return SessionViewModel(sessionRepository) as T
